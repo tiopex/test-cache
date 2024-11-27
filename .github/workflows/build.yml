@@ -7,14 +7,16 @@ on:
 jobs:
   cache-job:
     runs-on: ubuntu-latest
-
+    permissions:
+      actions: write
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Retrieve ccache arm
         id: retrieve-cache
-        uses: buildjet/cache/restore@v4
+        uses: actions/cache/restore@v4
         with:
           path: .ccache-arm
           key: ccache-arm-test-${{ github.sha }}
@@ -28,14 +30,21 @@ jobs:
           mkdir -p .ccache-arm
           echo "test" > .ccache-arm/test.txt
 
-      - name: save ccache arm
-        uses: buildjet/cache/save@v4
+      - name: Delete used cache
+        if: ${{ steps.retrieve-cache.outputs.cache-hit }}
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh extension install actions/gh-actions-cache
+          gh actions-cache delete ${{ steps.retrieve-cache.outputs.cache-matched-key }} -R $GH_REPO --confirm
+
+      - name: save ccache
+        uses: actions/cache/save@v4
         with:
           path: .ccache-arm
           key: ccache-arm-test-${{ github.sha }}
-
-      - name: Delete used cache
-        if: ${{ steps.retrieve-cache.outputs.cache-hit }}
-        uses: buildjet/cache-delete@v1
-        with:
-          cache_key: ${{ steps.retrieve-cache.outputs.cache-matched-key }}
+#          curl -X DELETE -H "Authorization: Bearer $GH_TOKEN" \
+#          -H "Accept: application/vnd.github+json" \
+#          https://api.github.com/repos/${{ github.repository }}/actions/caches/${{ steps.retrieve-cache.outputs.cache-matched-key }}
+#          gh cache delete ${{ steps.retrieve-cache.outputs.cache-matched-key }}
