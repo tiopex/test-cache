@@ -1,0 +1,41 @@
+name: test cache
+on:
+  push:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  cache-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Retrieve ccache arm
+        id: retrieve-cache
+        uses: buildjet/cache/restore@v4
+        with:
+          path: .ccache-arm
+          key: ccache-arm-test-${{ github.sha }}
+          restore-keys: |
+            ccache-arm-test-${{ github.sha }}
+            ccache-arm-test-
+
+      - name: Log cache ID
+        run: |
+          echo "Cache ID: ${{ steps.retrieve-cache.outputs.cache-matched-key }}"
+          mkdir -p .ccache-arm
+          echo "test" > .ccache-arm/test.txt
+
+      - name: save ccache arm
+        uses: buildjet/cache/save@v4
+        with:
+          path: .ccache-arm
+          key: ccache-arm-test-${{ github.sha }}
+
+      - name: Delete used cache
+        if: ${{ steps.retrieve-cache.outputs.cache-hit }}
+        uses: buildjet/cache-delete@v1
+        with:
+          cache_key: ${{ steps.retrieve-cache.outputs.cache-matched-key }}
