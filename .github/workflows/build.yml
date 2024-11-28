@@ -10,13 +10,15 @@ jobs:
     permissions:
       actions: write
       contents: read
+    env:
+      CACHE_KEY: ccache-arm-test-${{ github.sha }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Retrieve ccache arm
         id: retrieve-cache
-        uses: actions/cache/restore@v4
+        uses: buildjet/cache/restore@v4
         with:
           path: .ccache-arm
           key: ccache-arm-test-${{ github.sha }}
@@ -30,17 +32,24 @@ jobs:
           mkdir -p .ccache-arm
           echo "test" > .ccache-arm/test.txt
 
+#      - name: Delete used cache
+#        if: ${{ steps.retrieve-cache.outputs.cache-hit }}
+#        env:
+#          GH_REPO: ${{ github.repository }}
+#          GH_TOKEN: ${{ github.token }}
+#        run: |
+#          gh extension install actions/gh-actions-cache
+#          gh actions-cache delete ${{ steps.retrieve-cache.outputs.cache-matched-key }} -R $GH_REPO --confirm
+
       - name: Delete used cache
-        if: ${{ steps.retrieve-cache.outputs.cache-hit }}
-        env:
-          GH_REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh extension install actions/gh-actions-cache
-          gh actions-cache delete ${{ steps.retrieve-cache.outputs.cache-matched-key }} -R $GH_REPO --confirm
+        if: ${{ steps.retrieve-cache.outputs.cache-hit && steps.retrieve-cache.outputs.cache-matched-key != env.CACHE_KEY }}
+        uses: buildjet/cache-delete@v1
+        with:
+          cache_key: ${{ steps.retrieve-cache.outputs.cache-matched-key }}
 
       - name: save ccache
-        uses: actions/cache/save@v4
+        if: ${{ ! steps.retrieve-cache.outputs.cache-hit || steps.retrieve-cache.outputs.cache-matched-key != env.CACHE_KEY }}
+        uses: buildjet/cache/save@v4
         with:
           path: .ccache-arm
           key: ccache-arm-test-${{ github.sha }}
